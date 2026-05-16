@@ -50,10 +50,10 @@ export async function POST(req: Request) {
     const { data: inserted, error: datasetError } = await supabase
       .from("custom_datasets")
       .insert({
-        id: dataset.id || undefined, // undefined will auto-generate
+        id: dataset.id || undefined,
         name: dataset.name,
         description: dataset.description,
-      })
+      } as any)
       .select()
       .single()
 
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
         keywords: c.keywords || null,
       }))
 
-      const { error: casesError } = await supabase.from("eval_cases").insert(casesToInsert)
+      const { error: casesError } = await supabase.from("eval_cases").insert(casesToInsert as any)
       if (casesError) throw casesError
     }
 

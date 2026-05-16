@@ -50,7 +50,7 @@ export async function POST(req: Request) {
         runs_per_case: run.runsPerCase,
         temperature: run.temperature,
         duration_ms: null,
-      })
+      } as any)
       .select()
       .single()
 
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
       // Insert in chunks of 100 to avoid limits
       for (let i = 0; i < resultsToInsert.length; i += 100) {
         const chunk = resultsToInsert.slice(i, i + 100)
-        const { error: resultsError } = await supabase.from("eval_results").insert(chunk)
+        const { error: resultsError } = await supabase.from("eval_results").insert(chunk as any)
         if (resultsError) throw resultsError
       }
     }
