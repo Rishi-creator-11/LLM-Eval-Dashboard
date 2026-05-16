@@ -48,6 +48,57 @@ export async function POST(req: Request) {
     }
 
     const result = await runBenchmark({ models, cases, runsPerCase, temperature, clientKeys })
+
+    // Auto-save to Supabase if configured
+    if (body.saveRun && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      try {
+        const { supabase } = await import("@/lib/supabase")
+        const runId = crypto.randomUUID()
+        const runName = `Run ${new Date().toLocaleString()}`
+        
+        await supabase.from("eval_runs").insert({
+          id: runId,
+          name: runName,
+          models: result.perModel.map((r) => r.modelId),
+          categories: Array.from(new Set(result.rows.map((r) => r.category))),
+          runs_per_case: runsPerCase,
+          temperature: temperature,
+          duration_ms: result.finishedAt - result.startedAt,
+        })
+        
+        if (result.rows.length > 0) {
+          const resultsToInsert = result.rows.map((r) => ({
+            run_id: runId,
+            case_id: r.caseId,
+            category: r.category,
+            model_id: r.modelId,
+            provider: r.provider,
+            model: r.model,
+            prompt: r.prompt,
+            reference: r.reference,
+            response: r.response,
+            run_index: r.runIndex,
+            latency_ms: r.latencyMs,
+            total_tokens: r.totalTokens,
+            quality: r.quality,
+            rouge_l: r.rougeL,
+            hallucination: r.hallucination,
+            keyword_coverage: r.keywordCoverage,
+            error: r.error || null,
+          }))
+          
+          for (let i = 0; i < resultsToInsert.length; i += 100) {
+             await supabase.from("eval_results").insert(resultsToInsert.slice(i, i + 100))
+          }
+        }
+        
+        return NextResponse.json({ ...result, savedRunId: runId })
+      } catch (saveError) {
+        console.error("Failed to auto-save run:", saveError)
+        // Don't fail the benchmark if auto-save fails
+      }
+    }
+
     return NextResponse.json(result)
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Server error" }, { status: 500 })

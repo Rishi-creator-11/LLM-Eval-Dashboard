@@ -24,7 +24,7 @@ import { Separator } from "@/components/ui/separator"
 import { Loader2, Download, AlertCircle, Save, Trash2, History, ChevronRight } from "lucide-react"
 import type { AggregatedRow, ModelInfo, RunResult } from "@/lib/llm/types"
 import { loadApiKeys, type StoredApiKeys } from "@/lib/storage"
-import { loadSavedRuns, saveRun, deleteRun, type SavedRun } from "@/lib/storage"
+import { loadSavedRuns, saveRun, deleteRun, getSavedRun, type SavedRun } from "@/lib/storage"
 
 interface ApiMeta {
   models: ModelInfo[]
@@ -48,10 +48,12 @@ export function DashboardView() {
   const [error, setError] = useState<string | null>(null)
   const [savedRuns, setSavedRuns] = useState<SavedRun[]>([])
   const [compareRunId, setCompareRunId] = useState<string | null>(null)
+  const [compareRun, setCompareRun] = useState<SavedRun | null>(null)
   const [apiKeys, setApiKeys] = useState<StoredApiKeys | null>(null)
+  const [loadingRun, setLoadingRun] = useState(false)
 
   useEffect(() => {
-    setSavedRuns(loadSavedRuns())
+    loadSavedRuns().then(setSavedRuns)
     loadApiKeys().then(setApiKeys)
     let cancelled = false
     fetch("/api/models")
@@ -90,32 +92,58 @@ export function DashboardView() {
     }
   }
 
-  const handleSaveRun = () => {
+  const [savingRun, setSavingRun] = useState(false)
+
+  const handleSaveRun = async () => {
     if (!result) return
-    const id = crypto.randomUUID()
-    const name = `Run ${new Date().toLocaleString()}`
-    const run: SavedRun = {
-      id,
-      name,
-      timestamp: Date.now(),
-      models: result.perModel.map((r) => r.modelId),
-      categories: Array.from(new Set(result.rows.map((r) => r.category))),
-      runsPerCase: 1,
-      temperature: 0.4,
-      aggregated: result.perModel,
-      rawRuns: result.rows,
+    setSavingRun(true)
+    setError(null)
+    try {
+      const id = crypto.randomUUID()
+      const name = `Run ${new Date().toLocaleString()}`
+      const run: SavedRun = {
+        id,
+        name,
+        timestamp: Date.now(),
+        models: result.perModel.map((r) => r.modelId),
+        categories: Array.from(new Set(result.rows.map((r) => r.category))),
+        runsPerCase: 1,
+        temperature: 0.4,
+        aggregated: result.perModel,
+        rawRuns: result.rows,
+      }
+      await saveRun(run)
+      const updated = await loadSavedRuns()
+      setSavedRuns(updated)
+    } catch (e: any) {
+      setError(`Failed to save run: ${e?.message || "Unknown error"}`)
+    } finally {
+      setSavingRun(false)
     }
-    saveRun(run)
-    setSavedRuns(loadSavedRuns())
   }
 
-  const handleDeleteRun = (id: string) => {
-    deleteRun(id)
-    setSavedRuns(loadSavedRuns())
-    if (compareRunId === id) setCompareRunId(null)
+  const handleDeleteRun = async (id: string) => {
+    await deleteRun(id)
+    const updated = await loadSavedRuns()
+    setSavedRuns(updated)
+    if (compareRunId === id) {
+      setCompareRunId(null)
+      setCompareRun(null)
+    }
   }
 
-  const compareRun = savedRuns.find((r) => r.id === compareRunId) ?? null
+  const handleSelectRun = async (id: string) => {
+    if (compareRunId === id) {
+      setCompareRunId(null)
+      setCompareRun(null)
+      return
+    }
+    setLoadingRun(true)
+    setCompareRunId(id)
+    const run = await getSavedRun(id)
+    setCompareRun(run)
+    setLoadingRun(false)
+  }
 
   const activeResult: BenchmarkResult | null = compareRun
     ? {
@@ -211,7 +239,7 @@ export function DashboardView() {
                       className={`group flex items-center justify-between rounded-md px-2 py-1.5 text-sm cursor-pointer ${
                         compareRunId === run.id ? "bg-muted font-medium" : "hover:bg-muted/50"
                       }`}
-                      onClick={() => setCompareRunId(run.id === compareRunId ? null : run.id)}
+                      onClick={() => handleSelectRun(run.id)}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <ChevronRight className={`h-3 w-3 shrink-0 transition-transform ${compareRunId === run.id ? "rotate-90" : ""}`} />
@@ -237,7 +265,7 @@ export function DashboardView() {
                   ))}
                 </ScrollArea>
                 {compareRunId && (
-                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setCompareRunId(null)}>
+                  <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => handleSelectRun(compareRunId)}>
                     Return to current run
                   </Button>
                 )}
@@ -273,7 +301,18 @@ export function DashboardView() {
             </Card>
           )}
 
-          {activeResult ? (
+          {loadingRun && (
+            <Card>
+              <CardContent className="flex items-center gap-3 p-8 text-sm">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <div>
+                  <p className="font-medium">Loading saved run…</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!loadingRun && activeResult ? (
             <>
               <SummaryCards
                 rows={activeResult.perModel}
@@ -292,9 +331,9 @@ export function DashboardView() {
                   </TabsList>
                   <div className="flex items-center gap-2">
                     {!compareRunId && (
-                      <Button variant="outline" size="sm" onClick={handleSaveRun} className="gap-2">
-                        <Save className="h-3.5 w-3.5" />
-                        Save Run
+                      <Button variant="outline" size="sm" onClick={handleSaveRun} disabled={savingRun} className="gap-2">
+                        {savingRun ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                        {savingRun ? "Saving..." : "Save Run"}
                       </Button>
                     )}
                     <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
@@ -334,7 +373,7 @@ export function DashboardView() {
               </Tabs>
             </>
           ) : (
-            !running && <EmptyState />
+            !running && !loadingRun && <EmptyState />
           )}
         </section>
       </main>

@@ -44,9 +44,12 @@ export function ResponseViewer({ runs }: Props) {
           const isOpen = openCases.has(caseId)
           return (
             <div key={caseId} className="rounded-lg border bg-card">
-              <button
+              <div
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggle(caseId) }}
                 onClick={() => toggle(caseId)}
-                className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/40"
+                className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/40 cursor-pointer"
               >
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center gap-2">
@@ -58,10 +61,10 @@ export function ResponseViewer({ runs }: Props) {
                   </div>
                   <p className="line-clamp-2 text-sm">{first.prompt}</p>
                 </div>
-                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" tabIndex={-1}>
+                <div className="flex items-center justify-center h-7 w-7 shrink-0 rounded-md hover:bg-accent/50 text-muted-foreground">
                   {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </Button>
-              </button>
+                </div>
+              </div>
 
               {isOpen && (
                 <div className="space-y-3 border-t bg-muted/20 p-4">

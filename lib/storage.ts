@@ -1,5 +1,6 @@
 import { decrypt, encrypt } from "./crypto"
 import type { RunResult, AggregatedRow, EvalCase } from "./llm/types"
+import { hasSupabaseConfig } from "./supabase"
 
 const LS_KEYS = {
   apiKeys: "llm-eval-api-keys",
@@ -9,7 +10,7 @@ const LS_KEYS = {
 } as const
 
 /* ------------------------------------------------------------------ */
-/*  API Keys                                                          */
+/*  API Keys (Always localStorage for security)                       */
 /* ------------------------------------------------------------------ */
 
 export interface StoredApiKeys {
@@ -50,7 +51,7 @@ export function saveActiveProvider(provider: ProviderPreference) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Saved Runs                                                        */
+/*  Saved Runs (Async - Supabase primary, localStorage fallback)      */
 /* ------------------------------------------------------------------ */
 
 export interface SavedRun {
@@ -65,7 +66,16 @@ export interface SavedRun {
   rawRuns: RunResult[]
 }
 
-export function loadSavedRuns(): SavedRun[] {
+export async function loadSavedRuns(): Promise<SavedRun[]> {
+  if (hasSupabaseConfig) {
+    try {
+      const res = await fetch("/api/runs")
+      if (res.ok) return res.json()
+    } catch (e) {
+      console.error("Failed to load runs from Supabase, falling back to localStorage", e)
+    }
+  }
+
   const raw = localStorage.getItem(LS_KEYS.savedRuns)
   if (!raw) return []
   try {
@@ -75,19 +85,60 @@ export function loadSavedRuns(): SavedRun[] {
   }
 }
 
-export function saveRun(run: SavedRun) {
-  const existing = loadSavedRuns()
+export async function getSavedRun(id: string): Promise<SavedRun | null> {
+  if (hasSupabaseConfig) {
+    try {
+      const res = await fetch(`/api/runs/${id}`)
+      if (res.ok) return res.json()
+    } catch (e) {
+      console.error("Failed to fetch run from Supabase", e)
+    }
+  }
+
+  const runs = await loadSavedRuns()
+  return runs.find((r) => r.id === id) || null
+}
+
+export async function saveRun(run: SavedRun): Promise<void> {
+  if (hasSupabaseConfig) {
+    const res = await fetch("/api/runs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(run),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || `Server returned ${res.status}`)
+    }
+    const data = await res.json()
+    if (data.success === false) {
+      throw new Error(data.error || "Failed to save to Supabase")
+    }
+    return
+  }
+
+  const existing = await loadSavedRuns()
   existing.unshift(run)
   localStorage.setItem(LS_KEYS.savedRuns, JSON.stringify(existing.slice(0, 50)))
 }
 
-export function deleteRun(id: string) {
-  const existing = loadSavedRuns().filter((r) => r.id !== id)
-  localStorage.setItem(LS_KEYS.savedRuns, JSON.stringify(existing))
+export async function deleteRun(id: string): Promise<void> {
+  if (hasSupabaseConfig) {
+    try {
+      await fetch(`/api/runs/${id}`, { method: "DELETE" })
+      return
+    } catch (e) {
+      console.error("Failed to delete run from Supabase", e)
+    }
+  }
+
+  const existing = await loadSavedRuns()
+  const filtered = existing.filter((r) => r.id !== id)
+  localStorage.setItem(LS_KEYS.savedRuns, JSON.stringify(filtered))
 }
 
 /* ------------------------------------------------------------------ */
-/*  Custom Datasets                                                   */
+/*  Custom Datasets (Async - Supabase primary, localStorage fallback) */
 /* ------------------------------------------------------------------ */
 
 export interface CustomDataset {
@@ -98,7 +149,16 @@ export interface CustomDataset {
   createdAt: number
 }
 
-export function loadCustomDatasets(): CustomDataset[] {
+export async function loadCustomDatasets(): Promise<CustomDataset[]> {
+  if (hasSupabaseConfig) {
+    try {
+      const res = await fetch("/api/datasets")
+      if (res.ok) return res.json()
+    } catch (e) {
+      console.error("Failed to load datasets from Supabase, falling back to localStorage", e)
+    }
+  }
+
   const raw = localStorage.getItem(LS_KEYS.customDatasets)
   if (!raw) return []
   try {
@@ -108,15 +168,38 @@ export function loadCustomDatasets(): CustomDataset[] {
   }
 }
 
-export function saveCustomDataset(dataset: CustomDataset) {
-  const existing = loadCustomDatasets()
+export async function saveCustomDataset(dataset: CustomDataset): Promise<void> {
+  if (hasSupabaseConfig) {
+    try {
+      const res = await fetch("/api/datasets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dataset),
+      })
+      if (res.ok) return
+    } catch (e) {
+      console.error("Failed to save dataset to Supabase, falling back to localStorage", e)
+    }
+  }
+
+  const existing = await loadCustomDatasets()
   const idx = existing.findIndex((d) => d.id === dataset.id)
   if (idx >= 0) existing[idx] = dataset
   else existing.unshift(dataset)
   localStorage.setItem(LS_KEYS.customDatasets, JSON.stringify(existing))
 }
 
-export function deleteCustomDataset(id: string) {
-  const existing = loadCustomDatasets().filter((d) => d.id !== id)
-  localStorage.setItem(LS_KEYS.customDatasets, JSON.stringify(existing))
+export async function deleteCustomDataset(id: string): Promise<void> {
+  if (hasSupabaseConfig) {
+    try {
+      await fetch(`/api/datasets/${id}`, { method: "DELETE" })
+      return
+    } catch (e) {
+      console.error("Failed to delete dataset from Supabase", e)
+    }
+  }
+
+  const existing = await loadCustomDatasets()
+  const filtered = existing.filter((d) => d.id !== id)
+  localStorage.setItem(LS_KEYS.customDatasets, JSON.stringify(filtered))
 }
