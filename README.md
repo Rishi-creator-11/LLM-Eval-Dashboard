@@ -14,7 +14,7 @@
 
 **A powerful, open-source evaluation dashboard for benchmarking LLM performance across quality, latency, hallucination, and consistency metrics — all from your browser.**
 
-[Getting Started](#-getting-started) · [Features](#-features) · [Architecture](#-architecture) · [Contributing](#-contributing) · [License](#-license)
+[Live Demo](https://llm-eval-dashboard.vercel.app) · [Getting Started](#-getting-started) · [Features](#-features) · [Architecture](#-architecture) · [Contributing](#-contributing) · [License](#-license)
 
 </div>
 
