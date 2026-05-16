@@ -47,20 +47,22 @@ export async function POST(req: Request) {
       }
     }
 
+    const payload: any = {
+      id: dataset.id || undefined,
+      name: dataset.name,
+      description: dataset.description,
+    }
+
     const { data: inserted, error: datasetError } = await supabase
       .from("custom_datasets")
-      .insert({
-        id: dataset.id || undefined,
-        name: dataset.name,
-        description: dataset.description,
-      } as any)
+      .insert(payload)
       .select()
-      .single()
+      .single() as any
 
     if (datasetError) throw datasetError
 
     if (dataset.cases && dataset.cases.length > 0) {
-      const casesToInsert = dataset.cases.map((c) => ({
+      const casesPayload: any = dataset.cases.map((c) => ({
         dataset_id: inserted.id,
         case_id: c.id,
         category: c.category,
@@ -69,7 +71,7 @@ export async function POST(req: Request) {
         keywords: c.keywords || null,
       }))
 
-      const { error: casesError } = await supabase.from("eval_cases").insert(casesToInsert as any)
+      const { error: casesError } = await supabase.from("eval_cases").insert(casesPayload)
       if (casesError) throw casesError
     }
 

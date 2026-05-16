@@ -12,18 +12,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       .from("eval_runs")
       .select("*")
       .eq("id", resolvedParams.id)
-      .single()
+      .single() as any
 
     if (runError) throw runError
 
     const { data: results, error: resultsError } = await supabase
       .from("eval_results")
       .select("*")
-      .eq("run_id", resolvedParams.id)
+      .eq("run_id", resolvedParams.id) as any
 
     if (resultsError) throw resultsError
 
-    const rawRuns: RunResult[] = results.map((r) => ({
+    const rawRuns: RunResult[] = results.map((r: any) => ({
       caseId: r.case_id,
       category: r.category,
       modelId: r.model_id,

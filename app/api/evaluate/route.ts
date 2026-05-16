@@ -56,7 +56,7 @@ export async function POST(req: Request) {
         const runId = crypto.randomUUID()
         const runName = `Run ${new Date().toLocaleString()}`
         
-        await supabase.from("eval_runs").insert({
+        const runPayload: any = {
           id: runId,
           name: runName,
           models: result.perModel.map((r) => r.modelId),
@@ -64,10 +64,12 @@ export async function POST(req: Request) {
           runs_per_case: runsPerCase,
           temperature: temperature,
           duration_ms: result.finishedAt - result.startedAt,
-        })
+        }
+        
+        await supabase.from("eval_runs").insert(runPayload)
         
         if (result.rows.length > 0) {
-          const resultsToInsert = result.rows.map((r) => ({
+          const resultsToInsert: any = result.rows.map((r) => ({
             run_id: runId,
             case_id: r.caseId,
             category: r.category,
@@ -88,7 +90,7 @@ export async function POST(req: Request) {
           }))
           
           for (let i = 0; i < resultsToInsert.length; i += 100) {
-             await supabase.from("eval_results").insert(resultsToInsert.slice(i, i + 100))
+             await supabase.from("eval_results").insert(resultsToInsert.slice(i, i + 100) as any)
           }
         }
         

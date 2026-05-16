@@ -10,12 +10,12 @@ export async function GET() {
       .from("eval_runs")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(50)
+      .limit(50) as any
 
     if (error) throw error
 
     // Map to SavedRun shape, but without rawRuns/aggregated (those are fetched on demand)
-    const result = runs.map((r) => ({
+    const result = runs.map((r: any) => ({
       id: r.id,
       name: r.name,
       timestamp: new Date(r.created_at).getTime(),
@@ -40,19 +40,21 @@ export async function POST(req: Request) {
     const run: SavedRun = await req.json()
 
     // 1. Insert run metadata
+    const payload: any = {
+      id: run.id,
+      name: run.name,
+      models: run.models,
+      categories: run.categories,
+      runs_per_case: run.runsPerCase,
+      temperature: run.temperature,
+      duration_ms: null,
+    }
+
     const { data: insertedRun, error: runError } = await supabase
       .from("eval_runs")
-      .insert({
-        id: run.id,
-        name: run.name,
-        models: run.models,
-        categories: run.categories,
-        runs_per_case: run.runsPerCase,
-        temperature: run.temperature,
-        duration_ms: null,
-      } as any)
+      .insert(payload)
       .select()
-      .single()
+      .single() as any
 
     if (runError) throw runError
 
@@ -80,8 +82,8 @@ export async function POST(req: Request) {
 
       // Insert in chunks of 100 to avoid limits
       for (let i = 0; i < resultsToInsert.length; i += 100) {
-        const chunk = resultsToInsert.slice(i, i + 100)
-        const { error: resultsError } = await supabase.from("eval_results").insert(chunk as any)
+        const chunk: any = resultsToInsert.slice(i, i + 100)
+        const { error: resultsError } = await supabase.from("eval_results").insert(chunk)
         if (resultsError) throw resultsError
       }
     }
