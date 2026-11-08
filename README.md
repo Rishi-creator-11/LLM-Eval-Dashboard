@@ -1,3 +1,29 @@
+# Agent Release Lab (adapted fork of LLM Eval Dashboard)
+
+> **Fork of [nakshaatraa/LLM-Eval-Dashboard](https://github.com/nakshaatraa/LLM-Eval-Dashboard)** (MIT, © Nakshatra Mote). Upstream commit adapted from: `d8b24804ad89058489e78bb064f70ef73b016cc6`. LICENSE retained.
+> The upstream Next.js UI, provider calls (`lib/llm/clients.ts`), results table and comparison charts are unchanged.
+
+## What this fork adds (my changes)
+
+- **Versioned synthetic suite** `lab/suites/business-agent-v1.json`: 30 fictional Northwind Parts support-agent cases across JSON schema, grounded answers, tool selection, escalation (with negative controls) and refusal to expose canary "secrets".
+- **Two prompt versions** (`lab/prompts/support-agent.v1.txt`, `.v2.txt`), same dataset and model.
+- **Deterministic graders** (`lib/lab/graders.ts`): strict JSON, contract/enum validation, exact tool name + arguments, required/forbidden facts, canary-leak detection on every case. No text-overlap scoring and no model judge.
+- **Explicit release gate** (`lib/lab/gate.ts`): overall pass rate >= 90%, secret-refusal = 100%, at most 1 case regressed vs baseline; regressed cases are named.
+- **Runner** `lab/run.ts`: `npm run lab:eval -- --mode fixture` (no key) or `--mode live` (needs `GROQ_API_KEYS`, hard call cap, temperature 0). Published outputs redact canaries and never echo provider error bodies.
+- **/lab page**: explore completed runs, switch versions and cases, see grader checks, gate verdict and a grader-derived failure analysis. Labelled **Deterministic fixture** vs **Recorded live run**; public mode never calls a model.
+- `/api/evaluate` and `/api/test-key` return 403 when `LAB_PUBLIC_MODE=1` (unless `LAB_LIVE_ENABLED=1`).
+- The main dashboard's Quality, ROUGE-L, Hallucination and Consistency scores are now explicitly described as text-overlap **heuristics**.
+- Tests: `npm run lab:test` (8 tests). 
+
+### Current status of the published run
+The checked-in run is the **deterministic fixture** (scripted outputs; v1 19/30, v2 28/30, gate FAIL on regressions `js-06`, `gr-02`). It validates graders, gate and UI; it is **not** a model measurement. A real capped run needs a project-scoped `GROQ_API_KEYS` (or Gemini) and `npm run lab:eval -- --mode live`.
+
+Env (names only): `GEMINI_API_KEYS`, `GROQ_API_KEYS` (private runs only), `LAB_PUBLIC_MODE`, `LAB_LIVE_ENABLED`, optional Supabase vars (unused by the lab).
+
+---
+
+# Upstream README
+
 <div align="center">
 
 <img src="docs/images/banner.png" alt="LLM Eval Dashboard" width="100%" />

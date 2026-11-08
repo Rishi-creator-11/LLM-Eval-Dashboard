@@ -8,6 +8,11 @@ export const runtime = "nodejs"
 export const maxDuration = 300
 
 export async function POST(req: Request) {
+  // Modified (Agent Release Lab): the public deployment never runs live inference. Browser-supplied
+  // keys and server keys are both refused unless LAB_LIVE_ENABLED=1 (private/local use).
+  if (process.env.LAB_PUBLIC_MODE === "1" && process.env.LAB_LIVE_ENABLED !== "1") {
+    return NextResponse.json({ error: "Live evaluation is disabled on the public demo. Explore completed runs at /lab." }, { status: 403 })
+  }
   try {
     const body = await req.json()
     const models: string[] = body.models ?? []

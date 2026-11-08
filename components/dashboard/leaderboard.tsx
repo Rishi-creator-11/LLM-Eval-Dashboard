@@ -20,7 +20,7 @@ export function Leaderboard({ rows }: Props) {
               <Trophy className="h-4 w-4 text-primary" />
               Model Leaderboard
             </CardTitle>
-            <CardDescription>Composite = 0.5·Quality + 0.3·Consistency + 0.2·(1−Hallucination)</CardDescription>
+            <CardDescription>Composite = 0.5·Quality + 0.3·Consistency + 0.2·(1−Hallucination). Quality, ROUGE-L, Hallucination and Consistency are text-overlap heuristics, not ground-truth judgments.</CardDescription>
           </div>
         </div>
       </CardHeader>

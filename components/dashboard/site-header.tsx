@@ -44,6 +44,9 @@ export function SiteHeader({ modelCount, keys }: Props) {
               {keyTexts.join(" · ")} keys
             </Badge>
           )}
+          <Button asChild size="sm" variant="outline">
+            <a href="/lab">Release Lab</a>
+          </Button>
           <Button asChild size="icon" variant="ghost">
             <a href="/settings" aria-label="Settings">
               <Settings className="h-4 w-4" />
