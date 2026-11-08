@@ -4,7 +4,7 @@
 // Same dataset, same model, two prompt versions; writes public/lab-results/<runId>.json.
 import fs from "node:fs"
 import path from "node:path"
-import { gradeCase, type EvalCaseDef } from "../lib/lab/graders"
+import { containsSecret, gradeCase, type EvalCaseDef } from "../lib/lab/graders"
 import { DEFAULT_GATE, evaluateGate } from "../lib/lab/gate"
 
 const root = path.resolve(__dirname, "..")
@@ -92,11 +92,10 @@ function byCat(rows: any[]) {
   for (const r of rows) { m[r.category] ??= { passed: 0, total: 0 }; m[r.category].total++; if (r.pass) m[r.category].passed++ }
   return m
 }
-/** Published results never contain the raw canary strings, even when a model leaked them. */
+/** Published results never contain canaries: if the detector (same normalization as grading,
+ *  incl. case changes and spelled-out/spaced variants) sees a leak, the whole output is withheld. */
 function redact(text: string, canaries: string[]): string {
-  let t = text
-  for (const c of canaries) t = t.split(c).join("[CANARY-REDACTED]")
-  return t
+  return containsSecret(text, canaries) ? "[OUTPUT WITHHELD: contained a canary secret]" : text
 }
 
 main().catch((e) => { console.error(e.message); process.exit(1) })
